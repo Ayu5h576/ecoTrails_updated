@@ -5,6 +5,7 @@ import 'package:eco_trails/pages/app/bookmark_page.dart';
 import 'package:eco_trails/pages/app/category_page.dart';
 import 'package:eco_trails/pages/app/home_page.dart';
 import 'package:eco_trails/pages/app/map_page.dart';
+import 'package:eco_trails/pages/app/search_page.dart';
 import 'package:eco_trails/pages/app/start_travel_page.dart';
 import 'package:eco_trails/pages/app/travel_history_page.dart';
 import 'package:eco_trails/pages/app/trip_plan_page.dart';
@@ -70,7 +71,7 @@ final GoRouter _router = GoRouter(
     GoRoute(path: '/bookmarks', builder: (context, state) => BookmarkScreen()),
 
     GoRoute(path: '/tripPlan', builder: (context, state) => TripPlanPage()),
-
+    GoRoute(path: '/search', builder: (context, state) => SearchPage()),
     GoRoute(path: '/history', builder: (context, state) => TravelHistoryPage()),
     GoRoute(
       path: '/place',

@@ -398,7 +398,7 @@ class HomePageState extends State<HomePage> {
                             const SizedBox(width: 4),
                             Expanded(
                               child: Text(
-                                place.location.toString(),
+                                place.title,
                                 style: GoogleFonts.poppins(fontSize: 10.5),
                                 overflow: TextOverflow.ellipsis,
                                 maxLines: 1,
@@ -515,7 +515,7 @@ class HomePageState extends State<HomePage> {
                               const SizedBox(width: 4),
                               Expanded(
                                 child: Text(
-                                  place.location.toString(),
+                                  place.title,
                                   style: GoogleFonts.poppins(fontSize: 10.5),
                                   overflow: TextOverflow.ellipsis,
                                   maxLines: 1,

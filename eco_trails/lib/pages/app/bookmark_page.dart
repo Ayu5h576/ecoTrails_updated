@@ -175,7 +175,7 @@ class _BookmarkScreenState extends State<BookmarkScreen> {
                               return GestureDetector(
                                 onTap: () {
                                   final placeObj = Place.fromFirestore(
-                                    place.data() as Map<String, dynamic>,
+                                    place as Map<String, dynamic>,
                                   );
 
                                   GoRouter.of(

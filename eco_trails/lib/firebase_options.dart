@@ -85,5 +85,4 @@ class DefaultFirebaseOptions {
     storageBucket: 'ecotrails-4386c.firebasestorage.app',
     measurementId: 'G-HLXGDG6WBE',
   );
-
 }

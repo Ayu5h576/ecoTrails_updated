@@ -60,7 +60,7 @@ class _TripPlannerPageState extends State<TripPlannerPage> {
         'plasticAvoidance': plasticAvoidance,
         'ecoHomeStay': ecoHomeStay,
         'healthNotes': healthController.text,
-        'createdAt': FieldValue.serverTimestamp(),
+        'createdAt': DateTime.now(),
       };
 
       await FirebaseFirestore.instance.collection('trips').add(tripData);

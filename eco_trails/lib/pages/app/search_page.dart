@@ -1,35 +1,22 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:eco_trails/models/place.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:go_router/go_router.dart';
 
-class CategoryPage extends StatefulWidget {
-  const CategoryPage({super.key});
-
+class SearchPage extends StatefulWidget {
   @override
-  State<CategoryPage> createState() => CategoryPageState();
+  _SearchPageState createState() => _SearchPageState();
 }
 
-class CategoryPageState extends State<CategoryPage> {
-  final List<Map<String, String>> categories = [
-    {
-      'label': 'All',
-      'image': 'assets/images/categories/IMG-20250507-WA0060[1].jpg',
-    },
-    {'label': 'Mountain', 'image': 'assets/images/categories/mountain.jpg'},
-    {'label': 'Lake', 'image': 'assets/images/categories/pond.jpg'},
-    {'label': 'Temple', 'image': 'assets/images/categories/temple.jpg'},
-    {'label': 'City', 'image': 'assets/images/categories/city.jpg'},
-    {'label': 'River', 'image': 'assets/images/categories/river.jpg'},
-  ];
-  List<DocumentReference> bookmarkedRefs = [];
-  String selectedCategory = 'All';
+class _SearchPageState extends State<SearchPage> {
   List<Map<String, dynamic>> allPlaces = [];
   bool isLoading = true;
+  List<DocumentReference> bookmarkedRefs = [];
+  String searchQuery = '';
 
   Future<void> fetchBookmarkedRefs() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -47,13 +34,6 @@ class CategoryPageState extends State<CategoryPage> {
         });
       }
     }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    fetchPlaces();
-    fetchBookmarkedRefs();
   }
 
   Future<void> fetchPlaces() async {
@@ -100,17 +80,25 @@ class CategoryPageState extends State<CategoryPage> {
     }
   }
 
-  List<Map<String, dynamic>> get filteredPlaces {
-    final filteredByCategory =
-        selectedCategory == 'All'
-            ? allPlaces
-            : allPlaces
-                .where((place) => place['category'] == selectedCategory)
-                .toList();
-    return filteredByCategory;
+  @override
+  void initState() {
+    super.initState();
+    fetchPlaces();
+    fetchBookmarkedRefs();
   }
 
-  // Function to add a place to the user's bookmarks
+  List<Map<String, dynamic>> get searchedPlaces {
+    if (searchQuery.isEmpty) return allPlaces;
+
+    return allPlaces
+        .where(
+          (place) => place['name'].toString().toLowerCase().contains(
+            searchQuery.toLowerCase(),
+          ),
+        )
+        .toList();
+  }
+
   Future<void> addBookmark(DocumentReference placeRef) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -155,20 +143,32 @@ class CategoryPageState extends State<CategoryPage> {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16.0, 25, 16.0, 16.0),
+    return Scaffold(
+      backgroundColor: const Color.fromRGBO(201, 219, 213, 1),
+      appBar: AppBar(
+        backgroundColor: const Color.fromRGBO(201, 219, 213, 1),
+        centerTitle: true,
+        title: Text(
+          'Search',
+          style: GoogleFonts.poppins(
+            fontSize: 25,
+            fontWeight: FontWeight.bold,
+            color: const Color.fromRGBO(111, 119, 137, 1),
+          ),
+        ),
+        leading: IconButton(
+          icon: Icon(
+            Icons.arrow_back,
+            color: Color.fromRGBO(111, 119, 137, 1),
+            size: 30,
+          ),
+          onPressed: () => (context).go('/home', extra: {'initialTabIndex': 1}),
+        ),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(8.0),
         child: Column(
           children: [
-            Text(
-              'Eco Trails',
-              style: GoogleFonts.poppins(
-                fontSize: 25,
-                fontWeight: FontWeight.bold,
-                color: const Color.fromRGBO(111, 119, 137, 1),
-              ),
-            ),
-            const SizedBox(height: 10),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
               decoration: BoxDecoration(
@@ -178,92 +178,21 @@ class CategoryPageState extends State<CategoryPage> {
                   BoxShadow(color: Colors.black26, blurRadius: 4),
                 ],
               ),
-              child: GestureDetector(
-                onTap: () {
-                  context.go('/search');
+              child: TextField(
+                onChanged: (value) {
+                  setState(() {
+                    searchQuery = value;
+                  });
                 },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 14,
+                decoration: InputDecoration(
+                  hintText: 'Search places',
+                  hintStyle: GoogleFonts.poppins(
+                    fontSize: 14,
+                    color: Colors.grey,
                   ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.search, color: Colors.grey),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Search places',
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
+                  border: InputBorder.none,
+                  icon: const Icon(Icons.search, color: Colors.grey),
                 ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Category',
-                style: GoogleFonts.poppins(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            SizedBox(
-              height: 90,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: categories.length,
-                itemBuilder: (context, index) {
-                  final item = categories[index];
-                  final isSelected = selectedCategory == item['label'];
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 12),
-                    child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          selectedCategory = item['label']!;
-                        });
-                      },
-                      child: Column(
-                        children: [
-                          CircleAvatar(
-                            radius: isSelected ? 28 : 24,
-                            backgroundColor: Colors.white,
-                            child: CircleAvatar(
-                              backgroundImage: AssetImage(item['image']!),
-                              radius: isSelected ? 26 : 22,
-                              backgroundColor:
-                                  isSelected ? Colors.blue.shade100 : null,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            item['label']!,
-                            style: GoogleFonts.poppins(
-                              fontSize: 12,
-                              color: isSelected ? Colors.blue : Colors.black87,
-                              fontWeight:
-                                  isSelected
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
               ),
             ),
             const SizedBox(height: 20),
@@ -271,12 +200,12 @@ class CategoryPageState extends State<CategoryPage> {
               child:
                   isLoading
                       ? const Center(child: CircularProgressIndicator())
-                      : filteredPlaces.isEmpty
+                      : searchedPlaces.isEmpty
                       ? const Center(child: Text('No places found'))
                       : ListView.builder(
-                        itemCount: filteredPlaces.length,
+                        itemCount: searchedPlaces.length,
                         itemBuilder: (context, index) {
-                          final place = filteredPlaces[index];
+                          final place = searchedPlaces[index];
                           final images = place['multiple images'] as List;
                           final imageUrl =
                               images.isNotEmpty
@@ -291,7 +220,11 @@ class CategoryPageState extends State<CategoryPage> {
                               ).go('/place', extra: placeObj);
                             },
                             child: Card(
-                              margin: const EdgeInsets.only(bottom: 12),
+                              margin: const EdgeInsets.only(
+                                bottom: 8,
+                                right: 5,
+                                left: 5,
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),

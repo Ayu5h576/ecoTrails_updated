@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -26,16 +27,15 @@ class _TripPlanPageState extends State<TripPlanPage>
   Future<void> fetchTodayTrip() async {
     final today = DateTime.now();
     final startOfDay = DateTime(today.year, today.month, today.day);
-    final endOfDay = startOfDay.add(const Duration(days: 1));
 
     final snapshot =
         await FirebaseFirestore.instance
             .collection('trips')
+            .orderBy('createdAt', descending: true)
             .where(
               'selectedDate',
               isGreaterThanOrEqualTo: startOfDay.toIso8601String(),
             )
-            .where('selectedDate', isLessThan: endOfDay.toIso8601String())
             .limit(1)
             .get();
 
@@ -155,144 +155,161 @@ class FirebaseTripsPage extends StatelessWidget {
     final data = tripDoc.data() as Map<String, dynamic>;
     final placeId = data['placeId'];
 
-    return Container(
-      color: const Color.fromRGBO(201, 219, 213, 1),
-      child: FutureBuilder<DocumentSnapshot>(
-        future:
-            FirebaseFirestore.instance.collection('places').doc(placeId).get(),
-        builder: (context, placeSnapshot) {
-          if (placeSnapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (!placeSnapshot.hasData || !placeSnapshot.data!.exists) {
-            return const Center(child: Text("Place data not found."));
-          }
+    return SingleChildScrollView(
+      child: Container(
+        color: const Color.fromRGBO(201, 219, 213, 1),
+        child: FutureBuilder<QuerySnapshot>(
+          future:
+              FirebaseFirestore.instance
+                  .collection('places')
+                  .where('name', isEqualTo: placeId)
+                  .limit(1)
+                  .get(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              return const Center(child: Text("Place data not found."));
+            }
 
-          final placeData = placeSnapshot.data!.data() as Map<String, dynamic>;
-          final images = placeData['multiple images'] ?? [];
-          final firstImageUrl = images.isNotEmpty ? images[0] : null;
+            final placeData =
+                snapshot.data!.docs.first.data() as Map<String, dynamic>;
+            final images = placeData['multiple images'] ?? [];
+            final firstImageUrl = images.isNotEmpty ? images[0] : null;
 
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10.0),
-            child: Card(
-              elevation: 5,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (firstImageUrl != null)
-                    ClipRRect(
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(12),
-                        topRight: Radius.circular(12),
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10.0),
+              child: Card(
+                elevation: 5,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (firstImageUrl != null)
+                      ClipRRect(
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(12),
+                          topRight: Radius.circular(12),
+                        ),
+                        child: CachedNetworkImage(
+                          imageUrl: firstImageUrl,
+                          width: double.infinity,
+                          height: 250,
+                          fit: BoxFit.cover,
+                          placeholder:
+                              (context, url) => Container(
+                                width: double.infinity,
+                                height: 250,
+                                color: Colors.grey[300],
+                                child: const Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                              ),
+                          errorWidget: (context, error, stackTrace) {
+                            return Container(
+                              width: double.infinity,
+                              height: 250,
+                              color: Colors.grey[300],
+                              child: const Center(
+                                child: Icon(
+                                  Icons.image_not_supported,
+                                  size: 50,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                       ),
-                      child: Image.network(
-                        firstImageUrl,
-                        width: double.infinity,
-                        height: 250,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            width: double.infinity,
-                            height: 250,
-                            color: Colors.grey[300],
-                            child: const Center(
-                              child: Icon(Icons.image_not_supported, size: 50),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.all(10.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "${data['placeTitle']} (${data['selectedTripDuration']})",
+                            style: const TextStyle(
+                              fontSize: 22.0,
+                              fontWeight: FontWeight.bold,
                             ),
-                          );
-                        },
-                      ),
-                    ),
-                  const SizedBox(height: 8),
-                  Padding(
-                    padding: const EdgeInsets.all(10.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "${data['placeTitle']} (${data['selectedTripDuration']})",
-                          style: const TextStyle(
-                            fontSize: 22.0,
-                            fontWeight: FontWeight.bold,
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          "Transport: ${data['selectedTransport']}",
-                          style: const TextStyle(fontSize: 16.0),
-                        ),
-                        Text(
-                          "Eco Mode: ${data['ecoMode']} | Eco Home Stay: ${data['ecoHomeStay'] == 1 ? 'Yes' : 'No'}",
-                          style: const TextStyle(fontSize: 16.0),
-                        ),
-                        const Divider(),
-                        Row(
-                          children: [
-                            Text(
-                              "Budget: ₹${data['price']}",
-                              style: const TextStyle(
-                                fontSize: 18.0,
-                                color: Color.fromARGB(255, 1, 90, 92),
-                                fontWeight: FontWeight.bold,
+                          const SizedBox(height: 8),
+                          Text(
+                            "Transport: ${data['selectedTransport']}",
+                            style: const TextStyle(fontSize: 16.0),
+                          ),
+                          Text(
+                            "Eco Mode: ${data['ecoMode']} | Eco Home Stay: ${data['ecoHomeStay'] == 1 ? 'Yes' : 'No'}",
+                            style: const TextStyle(fontSize: 16.0),
+                          ),
+                          const Divider(),
+                          Row(
+                            children: [
+                              Text(
+                                "Budget: ₹${data['price']}",
+                                style: const TextStyle(
+                                  fontSize: 18.0,
+                                  color: Color.fromARGB(255, 1, 90, 92),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const Spacer(),
+                              Text(
+                                "Group Type: ${data['groupType']}",
+                                style: const TextStyle(fontSize: 16.0),
+                              ),
+                            ],
+                          ),
+                          const Divider(),
+                          Text(
+                            "Interests:",
+                            style: const TextStyle(
+                              fontSize: 18.0,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          ...List.generate(
+                            data['interests']?.length ?? 0,
+                            (index) => Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 4.0,
+                              ),
+                              child: Text(
+                                "- ${data['interests'][index]}",
+                                style: const TextStyle(fontSize: 16.0),
                               ),
                             ),
-                            const Spacer(),
-                            Text(
-                              "Group Type: ${data['groupType']}",
-                              style: const TextStyle(fontSize: 16.0),
-                            ),
-                          ],
-                        ),
-                        const Divider(),
-                        Text(
-                          "Interests:",
-                          style: const TextStyle(
-                            fontSize: 18.0,
-                            fontWeight: FontWeight.bold,
                           ),
-                        ),
-                        ...List.generate(
-                          data['interests']?.length ?? 0,
-                          (index) => Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 4.0),
-                            child: Text(
-                              "- ${data['interests'][index]}",
-                              style: const TextStyle(fontSize: 16.0),
-                            ),
+                          const Divider(),
+                          Text(
+                            "Adventure Level: ${data['adventureLevel']}",
+                            style: const TextStyle(fontSize: 16.0),
                           ),
-                        ),
-                        const Divider(),
-                        Text(
-                          "Adventure Level: ${data['adventureLevel']}",
-                          style: const TextStyle(fontSize: 16.0),
-                        ),
-                        Text(
-                          "Dietary Preferences: ${data['dietary']}",
-                          style: const TextStyle(fontSize: 16.0),
-                        ),
-                        Text(
-                          "Health Notes: ${data['healthNotes'] ?? 'None'}",
-                          style: const TextStyle(fontSize: 16.0),
-                        ),
-                        const Divider(),
-                        Text(
-                          "Plastic Avoidance: ${data['plasticAvoidance'] ? 'Yes' : 'No'}",
-                          style: const TextStyle(fontSize: 16.0),
-                        ),
-                        Text(
-                          "Created At: ${data['createdAt']?.toDate().toLocal().toString().substring(0, 19)}",
-                          style: const TextStyle(fontSize: 16.0),
-                        ),
-                      ],
+                          Text(
+                            "Health Notes: ${data['healthNotes'] ?? 'None'}",
+                            style: const TextStyle(fontSize: 16.0),
+                          ),
+                          const Divider(),
+                          Text(
+                            "Plastic Avoidance: ${data['plasticAvoidance'] ? 'Yes' : 'No'}",
+                            style: const TextStyle(fontSize: 16.0),
+                          ),
+                          Text(
+                            "Created At: ${data['createdAt']?.toDate().toLocal().toString().substring(0, 19)}",
+                            style: const TextStyle(fontSize: 16.0),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }
@@ -328,7 +345,7 @@ class _ApiItineraryPageState extends State<ApiItineraryPage> {
     try {
       // Updated API endpoint - replace this with your actual working API endpoint
       final apiUrl =
-          'https://0513-34-23-115-117.ngrok-free.app/generate-itinerary';
+          'https://c2d8-34-34-13-142.ngrok-free.app/generate-itinerary';
 
       // Improved logging for debugging
       print('Sending request to: $apiUrl');
